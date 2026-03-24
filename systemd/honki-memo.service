@@ -1,0 +1,14 @@
+[Unit]
+Description=HonKi Memo Rust Server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/honki-memo
+EnvironmentFile=/opt/honki-memo/.env
+ExecStart=/opt/honki-memo/target/release/honki_memo
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

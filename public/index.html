@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HonKi Remote Memo</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="app-shell">
+        <aside id="sidebar" class="sidebar sidebar-open">
+            <button id="sidebarToggle" class="toggle-btn" type="button" aria-label="사이드바 토글">
+                <span id="toggleIcon">&lt;</span>
+            </button>
+
+            <div id="sidebarContent" class="sidebar-content">
+                <div class="sidebar-header">
+                    <div class="brand">&gt;_</div>
+                    <button id="addNoteBtn" class="primary-btn" type="button">NEW</button>
+                </div>
+
+                <div class="sync-panel">
+                    <span id="syncStatus" class="sync-status" data-state="loading">서버 연결 중...</span>
+                    <button id="retrySyncBtn" class="text-btn" type="button" hidden>다시 전송</button>
+                </div>
+
+                <div id="noteList" class="note-list"></div>
+            </div>
+        </aside>
+
+        <main class="workspace">
+            <header id="editorHeader" class="editor-header hidden">
+                <input id="noteTitle" type="text" placeholder="FILENAME.txt" autocomplete="off">
+
+                <div class="editor-tools">
+                    <label class="icon-btn" aria-label="이미지 추가">
+                        <input id="imageInput" type="file" hidden accept="image/*">
+                        <span>IMG</span>
+                    </label>
+                    <span id="saveHint" class="save-hint">자동 저장 준비</span>
+                </div>
+            </header>
+
+            <section id="editorContent" class="editor-content hidden">
+                <div id="canvasContainer" class="canvas-container">
+                    <textarea id="noteBody" placeholder="Start typing..."></textarea>
+                    <div id="imageLayer" class="image-layer"></div>
+                </div>
+            </section>
+
+            <section id="emptyState" class="empty-state">
+                <div class="empty-mark">&gt;_</div>
+                <p>Awaiting_Command</p>
+                <small>서버에 저장되는 원격 메모장</small>
+            </section>
+        </main>
+    </div>
+
+    <script src="/script.js" defer></script>
+</body>
+</html>
