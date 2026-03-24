@@ -1,0 +1,22 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.OCI_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.OCI_HOST }}" >> ~/.ssh/known_hosts
+      - name: Deploy on Oracle VM
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.OCI_USER }}@${{ secrets.OCI_HOST }}" \
+            "bash /opt/honki-memo/deploy/oracle/redeploy.sh"

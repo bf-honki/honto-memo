@@ -28,6 +28,8 @@ This version is meant to be deployed on an always-on server, so your laptop no l
 - local temporary cache when the network is unstable
 - retry sync when the internet comes back
 - if MySQL save fails on the server, a `.txt` backup is written into `failed_notes/`
+- Oracle VM bootstrap script for one-command server setup
+- GitHub Actions workflow for CI and auto deploy
 
 ## API
 
@@ -100,28 +102,48 @@ Why this combo is better than running from your notebook:
 - school Wi-Fi no longer needs to reach your personal machine directly
 - MySQL is managed outside the app server
 
-## Ubuntu VM deploy example
+## Oracle VM bootstrap
 
-On the server:
+On the Oracle Ubuntu VM:
 
 ```bash
-sudo apt update
-sudo apt install -y git build-essential pkg-config libssl-dev
-curl https://sh.rustup.rs -sSf | sh -s -- -y
-source "$HOME/.cargo/env"
-git clone https://github.com/YOUR_NAME/YOUR_REPO.git /opt/honki-memo
+curl -fsSL https://raw.githubusercontent.com/bf-honki/HonTo_Memo/main/deploy/oracle/install_ubuntu.sh -o install_ubuntu.sh
+chmod +x install_ubuntu.sh
+REPO_URL=https://github.com/bf-honki/HonTo_Memo.git ./install_ubuntu.sh
+```
+
+Then:
+
+```bash
 cd /opt/honki-memo
 cp .env.example .env
 nano .env
-cargo build --release
-sudo cp systemd/honki-memo.service /etc/systemd/system/honki-memo.service
-sudo systemctl daemon-reload
-sudo systemctl enable honki-memo
-sudo systemctl start honki-memo
-sudo systemctl status honki-memo
+sudo systemctl restart honki-memo
+sudo systemctl status honki-memo --no-pager
 ```
 
-Open port `3000`, or better, reverse proxy it with Nginx on ports `80/443`.
+The installer sets up:
+
+- Rust toolchain
+- Nginx reverse proxy on port `80`
+- systemd service for the Rust app
+- firewall rules for SSH and web traffic
+
+## GitHub auto deploy
+
+After the first VM install, add these GitHub repository secrets:
+
+- `OCI_HOST`
+- `OCI_USER`
+- `OCI_SSH_KEY`
+
+Then every push to `main` will run `.github/workflows/deploy.yml` and execute:
+
+```bash
+bash /opt/honki-memo/deploy/oracle/redeploy.sh
+```
+
+That script will pull the latest code, rebuild the Rust app, and restart `honki-memo`.
 
 ## Notes about GitHub Pages
 
