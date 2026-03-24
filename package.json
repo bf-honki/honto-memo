@@ -1,0 +1,15 @@
+﻿{
+  "name": "honto-memo-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@tidbcloud/serverless": "latest"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

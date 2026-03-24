@@ -1,160 +1,77 @@
-# HonKi Memo
+# HonTo Memo
 
-Rust + MySQL remote memo app.
-Different devices can open the same site, create notes, and save them straight into MySQL.
+Cloudflare Workers + TiDB Cloud Starter 기반 원격 메모장입니다.
 
-## Why the old site timed out
+같은 Worker 주소로 접속하면 다른 IP, 다른 컴퓨터에서도 같은 메모를 보고 수정할 수 있습니다. 프론트는 정적 파일로 배포되고, 메모 데이터는 TiDB(MySQL 호환)에 저장됩니다.
 
-If the old site was running on your laptop, the service disappeared the moment:
+## 현재 배포 구조
 
-- the laptop went to sleep or was turned off
-- the school network blocked direct inbound access
-- the public IP changed or port forwarding broke
+- 정적 사이트: Cloudflare Workers assets
+- API: `src/worker.js`
+- DB: TiDB Cloud Starter
+- 프론트: `public/index.html`, `public/script.js`
 
-This version is meant to be deployed on an always-on server, so your laptop no longer needs to stay awake.
+## Cloudflare Secrets
 
-## Stack
+Worker `Settings -> Variables and Secrets`에 아래 값을 넣으면 됩니다.
 
-- Frontend: plain HTML/CSS/JS
-- Backend: Rust + Axum
-- Database: MySQL
-- Static hosting: served by the Rust server itself
+- `TIDB_HOST`
+- `TIDB_PORT`
+- `TIDB_USER`
+- `TIDB_PASSWORD`
+- `TIDB_DATABASE`
 
-## Features
+예시:
 
-- shared notes across devices
-- automatic MySQL save
-- image placement inside notes
-- local temporary cache when the network is unstable
-- retry sync when the internet comes back
-- if MySQL save fails on the server, a `.txt` backup is written into `failed_notes/`
-- Oracle VM bootstrap script for one-command server setup
-- GitHub Actions workflow for CI and auto deploy
+- `TIDB_HOST`: `gateway01.ap-northeast-1.prod.aws.tidbcloud.com`
+- `TIDB_PORT`: `4000`
+- `TIDB_USER`: `27FJXp28cnpuvq7.root`
+- `TIDB_DATABASE`: `test`
+- `TIDB_PASSWORD`: TiDB에서 새로 만든 비밀번호
 
-## API
+선택 사항:
 
-- `GET /api/health`
-- `GET /api/notes`
-- `PUT /api/notes/:id`
-- `DELETE /api/notes/:id`
+- `DATABASE_URL`
+  값이 있으면 Worker가 이 값을 우선 사용합니다.
+  형식: `mysql://USER:PASSWORD@HOST:PORT/DATABASE?sslaccept=strict`
 
-## Environment variables
+## Worker가 하는 일
 
-Copy `.env.example` to `.env` and edit it:
+- `/api/health`: 연결 상태 확인
+- `/api/notes`: 메모 목록 조회
+- `/api/notes/:id`: 메모 저장, 삭제
+- 첫 실행 시 `notes` 테이블 자동 생성
+- 테이블이 비어 있으면 `SYSTEM_READY.log` 기본 메모 자동 생성
 
-```env
-DATABASE_URL=mysql://username:password@127.0.0.1:3306/honki_memo
-PORT=3000
-RUST_LOG=info
-```
+## 프론트 동작
 
-## Local run
+`public/script.js`는 서버 전송 실패 시 브라우저 `localStorage`에 변경 내용을 붙잡아 두고, 다시 온라인이 되면 자동 재전송합니다.
 
-1. Create a MySQL database named `honki_memo`.
-2. Set `DATABASE_URL` in `.env`.
-3. Start the app:
+즉 학교 와이파이가 잠깐 끊기거나 요청이 시간 초과되어도 브라우저 안에서는 메모가 바로 사라지지 않게 되어 있습니다.
 
-```powershell
-cargo run
-```
+## 중요한 제한
 
-Then open `http://127.0.0.1:3000`.
+Cloudflare Workers는 서버 파일시스템에 `.txt`를 쓰는 방식의 백업을 지원하지 않습니다. 그래서 배포 버전은 예전 Rust 서버처럼 `failed_notes` 폴더에 서버 측 `.txt` 파일을 남길 수 없습니다.
 
-If MySQL is unavailable, the server still starts and writes note backups into `failed_notes/`.
+대신 현재 배포 버전의 실패 대비 방식은 이렇습니다.
 
-## Push to GitHub
+- 1차 보호: 브라우저 `localStorage` 임시 저장
+- 2차 보호: 네트워크 복구 시 자동 재전송
 
-```powershell
-git init
-git add .
-git commit -m "Build Rust + MySQL remote memo app"
-git branch -M main
-git remote add origin https://github.com/YOUR_NAME/YOUR_REPO.git
-git push -u origin main
-```
+로컬에서 Rust 서버를 직접 돌릴 때만 기존 `src/main.rs` 경로의 `failed_notes` 백업 흐름을 사용할 수 있습니다.
 
-## Recommended free deployment
+## 파일 구성
 
-For the most stable free setup:
+- `src/worker.js`: Cloudflare Worker API + TiDB 연결
+- `wrangler.jsonc`: Worker 이름과 정적 assets 설정
+- `package.json`: `@tidbcloud/serverless`, `wrangler`
+- `public/index.html`: 메모 앱 화면
+- `public/script.js`: 자동 저장, 재전송, 메모 편집 로직
 
-1. Put this code on GitHub.
-2. Create a free MySQL instance.
-3. Create a free always-on VM.
-4. Pull this repo on the VM and run the Rust server there.
+## 다음 배포 방법
 
-That way:
-
-- GitHub stores the code
-- the VM stays online
-- MySQL stays outside your laptop
-- failed DB writes still leave a txt backup on the server
-
-## Practical provider combo
-
-Recommended pair:
-
-- Oracle Cloud Always Free VM for the Rust server
-- Aiven for MySQL free tier for the database
-
-Why this combo is better than running from your notebook:
-
-- the server keeps running after you close your laptop
-- school Wi-Fi no longer needs to reach your personal machine directly
-- MySQL is managed outside the app server
-
-## Oracle VM bootstrap
-
-On the Oracle Ubuntu VM:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/bf-honki/HonTo_Memo/main/deploy/oracle/install_ubuntu.sh -o install_ubuntu.sh
-chmod +x install_ubuntu.sh
-REPO_URL=https://github.com/bf-honki/HonTo_Memo.git ./install_ubuntu.sh
-```
-
-Then:
-
-```bash
-cd /opt/honki-memo
-cp .env.example .env
-nano .env
-sudo systemctl restart honki-memo
-sudo systemctl status honki-memo --no-pager
-```
-
-The installer sets up:
-
-- Rust toolchain
-- Nginx reverse proxy on port `80`
-- systemd service for the Rust app
-- firewall rules for SSH and web traffic
-
-## GitHub auto deploy
-
-After the first VM install, add these GitHub repository secrets:
-
-- `OCI_HOST`
-- `OCI_USER`
-- `OCI_SSH_KEY`
-
-Then every push to `main` will run `.github/workflows/deploy.yml` and execute:
-
-```bash
-bash /opt/honki-memo/deploy/oracle/redeploy.sh
-```
-
-That script will pull the latest code, rebuild the Rust app, and restart `honki-memo`.
-
-## Notes about GitHub Pages
-
-GitHub Pages is good for static files only.
-Because this app needs a Rust server and MySQL writes, GitHub Pages alone is not enough for the final deployment.
-
-## Docker option
-
-You can also build a container:
-
-```bash
-docker build -t honki-memo .
-docker run --env-file .env -p 3000:3000 honki-memo
-```
+1. GitHub 저장소에 현재 코드 반영
+2. Cloudflare에서 이 저장소를 Worker 프로젝트로 연결하거나 `Edit code`로 코드 반영
+3. Secrets 유지
+4. 배포 후 `https://<worker-name>.<subdomain>.workers.dev/api/health` 확인
+5. 메인 주소에서 메모 생성 후 MySQL Workbench에서 `test.notes` 확인
