@@ -1,8 +1,8 @@
-﻿{
+{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "honto-memo-20260325",
   "main": "src/worker.js",
-  "compatibility_date": "2026-03-25",
+  "compatibility_date": "2026-03-24",
   "assets": {
     "directory": "./public",
     "binding": "ASSETS"
